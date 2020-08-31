@@ -1,16 +1,36 @@
-import { login, logout, getInfo } from '@/api/user'
+import { login, logout, getUserInfo } from '@/api/auth'
 import { getToken, setToken, removeToken } from '@/utils/auth'
 import router, { resetRouter } from '@/router'
+import db from '@/utils/localstorage'
 
 const state = {
   token: getToken(),
-  name: '',
   avatar: '',
   introduction: '',
-  roles: []
+  roles: [],
+  user: db.get('USER'),
+  accessToken: db.get('ACCESS_TOKEN'),
+  refreshToken: db.get('REFRESH_TOKEN'),
+  expireTime: db.get('EXPIRE_TIME', 0)
 }
 
 const mutations = {
+  SET_USER(state, val) {
+    db.save('USER', val)
+    state.user = val
+  },
+  SET_ACCESSTOKEN(state, val) {
+    db.save('ACCESS_TOKEN', val)
+    state.accessToken = val
+  },
+  SET_REFRESHTOKEN(state, val) {
+    db.save('REFRESH_TOKEN', val)
+    state.refreshToken = val
+  },
+  SET_EXPIRETIME(state, val) {
+    db.save('EXPIRE_TIME', val)
+    state.expireTime = val
+  },
   SET_TOKEN: (state, token) => {
     state.token = token
   },
@@ -31,14 +51,17 @@ const mutations = {
 const actions = {
   // user login
   login({ commit }, userInfo) {
-    const { username, password } = userInfo
+    const params = { ...userInfo, grant_type: 'password' }
     return new Promise((resolve, reject) => {
-      login({ username: username.trim(), password: password }).then(response => {
-        const { data } = response
-        commit('SET_TOKEN', data.token)
-        setToken(data.token)
-        resolve()
+      login(params).then(response => {
+        commit('SET_ACCESSTOKEN', response.access_token)
+        commit('SET_REFRESHTOKEN', response.refresh_token)
+        const current = new Date()
+        const expireTime = current.setTime(current.getTime() + 1000 * response.expires_in)
+        commit('SET_EXPIRETIME', expireTime)
+        resolve(response)
       }).catch(error => {
+        console.log(error)
         reject(error)
       })
     })
@@ -47,14 +70,15 @@ const actions = {
   // get user info
   getInfo({ commit, state }) {
     return new Promise((resolve, reject) => {
-      getInfo(state.token).then(response => {
-        const { data } = response
-
-        if (!data) {
+      getUserInfo().then(response => {
+        console.log('userInfo: ', response)
+        if (!response) {
           reject('Verification failed, please Login again.')
         }
 
-        const { roles, name, avatar, introduction } = data
+        const roles = ['admin', 'dada']
+        const { avatar, introduction } = response
+        response.roles = roles
 
         // roles must be a non-empty array
         if (!roles || roles.length <= 0) {
@@ -62,10 +86,10 @@ const actions = {
         }
 
         commit('SET_ROLES', roles)
-        commit('SET_NAME', name)
+        commit('SET_NAME', 'damon')
         commit('SET_AVATAR', avatar)
         commit('SET_INTRODUCTION', introduction)
-        resolve(data)
+        resolve(response)
       }).catch(error => {
         reject(error)
       })
@@ -78,7 +102,7 @@ const actions = {
       logout(state.token).then(() => {
         commit('SET_TOKEN', '')
         commit('SET_ROLES', [])
-        removeToken()
+        // removeToken()
         resetRouter()
 
         // reset visited views and cached views

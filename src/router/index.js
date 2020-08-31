@@ -11,6 +11,7 @@ import componentsRouter from './modules/components'
 import chartsRouter from './modules/charts'
 import tableRouter from './modules/table'
 import nestedRouter from './modules/nested'
+import systemRouter from '@/router/modules/system'
 
 /**
  * Note: sub-menu only appear when route children.length >= 1
@@ -73,7 +74,7 @@ export const constantRoutes = [
   {
     path: '/',
     component: Layout,
-    redirect: '/dashboard',
+    redirect: '/system/user',
     children: [
       {
         path: 'dashboard',
@@ -121,14 +122,7 @@ export const constantRoutes = [
         meta: { title: 'Profile', icon: 'user', noCache: true }
       }
     ]
-  }
-]
-
-/**
- * asyncRoutes
- * the routes that need to be dynamically loaded based on user roles
- */
-export const asyncRoutes = [
+  },
   {
     path: '/permission',
     component: Layout,
@@ -189,6 +183,7 @@ export const asyncRoutes = [
   chartsRouter,
   nestedRouter,
   tableRouter,
+  systemRouter,
 
   {
     path: '/example',
@@ -385,6 +380,14 @@ export const asyncRoutes = [
 
   // 404 page must be placed at the end !!!
   { path: '*', redirect: '/404', hidden: true }
+]
+
+/**
+ * asyncRoutes
+ * the routes that need to be dynamically loaded based on user roles
+ */
+export const asyncRoutes = [
+  {}
 ]
 
 const createRouter = () => new Router({

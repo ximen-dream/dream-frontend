@@ -21,6 +21,7 @@
         />
       </el-form-item>
 
+      <!-- 密码 -->
       <el-tooltip v-model="capsTooltip" content="Caps lock is On" placement="right" manual>
         <el-form-item prop="password">
           <span class="svg-container">
@@ -30,7 +31,7 @@
             :key="passwordType"
             ref="password"
             v-model="loginForm.password"
-            :type="passwordType"
+            type="password"
             placeholder="Password"
             name="password"
             tabindex="2"
@@ -44,23 +45,27 @@
           </span>
         </el-form-item>
       </el-tooltip>
-
-      <el-button :loading="loading" type="primary" style="width:100%;margin-bottom:30px;" @click.native.prevent="handleLogin">Login</el-button>
-
-      <div style="position:relative">
-        <div class="tips">
-          <span>Username : admin</span>
-          <span>Password : any</span>
-        </div>
-        <div class="tips">
-          <span style="margin-right:18px;">Username : editor</span>
-          <span>Password : any</span>
-        </div>
-
-        <el-button class="thirdparty-button" type="primary" @click="showDialog=true">
-          Or connect with
-        </el-button>
+      <!-- 验证码 -->
+      <div class="validatecode">
+        <el-form-item prop="code" style="width: 220px;color: #fff">
+          <span class="svg-container">
+            <svg-icon icon-class="auth" />
+          </span>
+          <el-input
+            ref="code"
+            v-model="loginForm.code"
+            placeholder="Auth Code"
+            name="code"
+            tabindex="2"
+            autocomplete="on"
+            @keyup.native="checkCapslock"
+            @blur="capsTooltip = false"
+            @keyup.enter.native="handleLogin"
+          />
+        </el-form-item>
+        <img :src="imageCode" alt="codeImage" class="code-image" @click="getCodeImage">
       </div>
+      <el-button :loading="loading" type="primary" style="width:100%;margin-bottom:30px;" @click.native.prevent="handleLogin">Login</el-button>
     </el-form>
 
     <el-dialog title="Or connect with" :visible.sync="showDialog">
@@ -74,35 +79,49 @@
 </template>
 
 <script>
-import { validUsername } from '@/utils/validate'
+import db from '@/utils/localstorage'
 import SocialSign from './components/SocialSignin'
-
+import { mapMutations } from 'vuex'
+import { getUserInfo } from '../../api/auth'
+import axios from 'axios'
 export default {
   name: 'Login',
   components: { SocialSign },
   data() {
     const validateUsername = (rule, value, callback) => {
-      if (!validUsername(value)) {
-        callback(new Error('Please enter the correct user name'))
+      if (!value) {
+        callback(new Error('Please enter the user name'))
       } else {
         callback()
       }
     }
     const validatePassword = (rule, value, callback) => {
-      if (value.length < 6) {
-        callback(new Error('The password can not be less than 6 digits'))
+      if (value.length < 3) {
+        callback(new Error('The password can not be less than 3 digits'))
+      } else {
+        callback()
+      }
+    }
+    const validatecode = (rule, value, callback) => {
+      if (value.length !== 4) {
+        callback(new Error('Auth code length must equals 4'))
       } else {
         callback()
       }
     }
     return {
+      imageCode: undefined,
+      codeUrl: `${process.env.VUE_APP_BASE_API}auth/captcha`,
       loginForm: {
-        username: 'admin',
-        password: '111111'
+        username: 'ximen',
+        password: '123',
+        code: '',
+        key: '123'
       },
       loginRules: {
         username: [{ required: true, trigger: 'blur', validator: validateUsername }],
-        password: [{ required: true, trigger: 'blur', validator: validatePassword }]
+        password: [{ required: true, trigger: 'blur', validator: validatePassword }],
+        code: [{ required: true, trigger: 'blur', validator: validatecode }]
       },
       passwordType: 'password',
       capsTooltip: false,
@@ -133,11 +152,41 @@ export default {
     } else if (this.loginForm.password === '') {
       this.$refs.password.focus()
     }
+    db.clear()
+    this.getCodeImage()
   },
   destroyed() {
     // window.removeEventListener('storage', this.afterQRScan)
   },
   methods: {
+    ...mapMutations(['SET_ACCESSTOKEN', 'SET_REFRESHTOKEN', 'SET_EXPIRETIME', 'SET_USER']),
+    getCodeImage() {
+      this.loginForm.code = ''
+      axios({
+        method: 'GET',
+        url: `${this.codeUrl}?key=123`,
+        responseType: 'arraybuffer'
+      }).then(res => {
+        return 'data:image/png;base64,' + btoa(
+          new Uint8Array(res.data)
+            .reduce((data, byte) => data + String.fromCharCode(byte), '')
+        )
+      }).then((res) => {
+        this.imageCode = res
+      }).catch((e) => {
+        if (e.toString().indexOf('429') !== -1) {
+          this.$message({
+            message: this.$t('tips.tooManyRequest'),
+            type: 'error'
+          })
+        } else {
+          this.$message({
+            message: this.$t('tips.getCodeImageFailed'),
+            type: 'error'
+          })
+        }
+      })
+    },
     checkCapslock(e) {
       const { key } = e
       this.capsTooltip = key && key.length === 1 && (key >= 'A' && key <= 'Z')
@@ -152,22 +201,43 @@ export default {
         this.$refs.password.focus()
       })
     },
-    handleLogin() {
+    handleLogin: function() {
       this.$refs.loginForm.validate(valid => {
         if (valid) {
           this.loading = true
           this.$store.dispatch('user/login', this.loginForm)
-            .then(() => {
-              this.$router.push({ path: this.redirect || '/', query: this.otherQuery })
+            .then((res) => {
               this.loading = false
+              this.getUserDetailInfo()
+              // this.$router.push({ path: this.redirect || '/', query: this.otherQuery })
             })
-            .catch(() => {
+            .catch((e) => {
               this.loading = false
+              this.getCodeImage()
+              // this.$message.error(e.message)
             })
         } else {
           console.log('error submit!!')
           return false
         }
+      })
+    },
+    getUserDetailInfo() {
+      getUserInfo().then((r) => {
+        this.SET_USER(r.principal)
+        this.$message({
+          message: '获取用户信息',
+          type: 'success'
+        })
+        this.loading = false
+        this.$router.push('/')
+      }).catch((error) => {
+        this.$message({
+          message: '操作失败',
+          type: 'error'
+        })
+        console.error(error)
+        this.loading = false
       })
     },
     getOtherQuery(query) {
@@ -245,6 +315,15 @@ $cursor: #fff;
     color: #454545;
   }
 }
+  .validatecode {
+    position: relative;
+    width: 450px;
+  }
+  .validatecode img {
+    position: absolute;
+    right: 100px;
+    top: 4px;
+  }
 </style>
 
 <style lang="scss" scoped>
@@ -255,11 +334,13 @@ $light_gray:#eee;
 .login-container {
   min-height: 100%;
   width: 100%;
-  background-color: $bg;
+  background: url("images/background.jpg") fixed no-repeat left top;
   overflow: hidden;
 
   .login-form {
-    position: relative;
+    position: absolute;
+    right: 15px;
+    bottom: 250px;
     width: 520px;
     max-width: 100%;
     padding: 160px 35px 0;
@@ -304,7 +385,7 @@ $light_gray:#eee;
     right: 10px;
     top: 7px;
     font-size: 16px;
-    color: $dark_gray;
+    color: $light_gray;
     cursor: pointer;
     user-select: none;
   }

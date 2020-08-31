@@ -1,5 +1,6 @@
 module.exports = {
   title: 'Vue Element Admin',
+  authorizationValue: 'Basic Y2xvdWQ6MTIz',
 
   /**
    * @type {boolean} true | false
