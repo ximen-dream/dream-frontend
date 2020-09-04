@@ -25,7 +25,6 @@ service.interceptors.request.use(
     try {
       const expireTime = getExpireTime()
       if (expireTime) {
-        debugger
         const left = expireTime - new Date().getTime()
         const refreshToken = getRefreshToken()
         if (left < checkRegion && refreshToken) {

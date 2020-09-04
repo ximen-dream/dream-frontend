@@ -76,82 +76,31 @@
         />
       </template>
     </div>
-    <el-drawer
-      title="用户修改"
-      :visible.sync="drawer"
-      :with-header="false"
-    >
-      <div class="editUser">
-        <h3>用户修改</h3>
-        <div><span>姓名：</span><el-input v-model="editUser.username" style="width: 50%" /></div>
-        <div><span>邮箱：</span><el-input v-model="editUser.email" style="width: 50%" /></div>
-        <div>
-          <span>角色：</span>
-          <el-select v-model="roleIds" style="width: 50%" multiple placeholder="请选择">
-            <el-option
-              v-for="item in roleOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
-        </div>
-        <div>
-          <el-button
-            size="mini"
-            type="primary"
-            @click="doUpdate"
-          >保存</el-button>
-        </div>
-      </div>
-    </el-drawer>
-    <el-drawer
-      title="添加用户"
-      :visible.sync="addDrawer"
-      :with-header="false"
-    >
-      <div class="editUser">
-        <h3>添加用户</h3>
-        <div><span>姓名：</span><el-input v-model="addUser.username" style="width: 50%" /></div>
-        <div><span>邮箱：</span><el-input v-model="addUser.email" style="width: 50%" /></div>
-        <div>
-          <span>角色：</span>
-          <el-select v-model="addUser.roleIds" style="width: 50%" multiple placeholder="请选择">
-            <el-option
-              v-for="item in roleOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
-        </div>
-        <div>
-          <el-button
-            size="mini"
-            type="primary"
-            @click="doAdd"
-          >保存</el-button>
-        </div>
-      </div>
-    </el-drawer>
+    <user-add :drawer="addDrawer" @close="addDrawerClose" @submitSuccess="addSuccess"/>
+    <user-edit :drawer="editDrawer" @close="editDrawerClose" :user="editUser" @submitSuccess="editSuccess"/>
   </div>
 </template>
 
 <script>
-import { page, update, add, deleteUser } from '@/api/system/user'
+import { page, update, deleteUser } from '@/api/system/user'
 import { page as roleList } from '@/api/system/role'
 import moment from 'moment'
-
+import UserAdd from './components/UserAdd'
+import UserEdit from './components/UserEdit'
 export default {
   name: 'User',
+  components: {
+    UserAdd,
+    UserEdit
+  },
   data() {
     return {
+      addDrawer: false,
+      editDrawer: false,
       roleOptions: [],
       roleIds: [],
       editUser: {},
       addUser: {},
-      drawer: false,
-      addDrawer: false,
       total: 0,
       searchTypes: [
         { value: 1, label: '用户名' },
@@ -168,22 +117,22 @@ export default {
   },
   mounted() {
     this.page()
+    this.roleList()
   },
   methods: {
     moment,
-    // eslint-disable-next-line vue/no-dupe-keys
-    doAdd() {
-      this.addUser.roleId = this.addUser.roleIds.join(',')
-      add(this.addUser).then(res => {
-        if (res.flag) {
-          this.addDrawer = false
-          this.page()
-          this.$message.success('添加成功')
-        } else {
-          this.$message.error('添加失败')
-        }
-      })
+    addDrawerClose() {
+      this.addDrawer = false
     },
+    editDrawerClose() {
+      this.editDrawer = false
+    },
+    // 添加成功
+    addSuccess() {
+      this.addDrawer = false
+      this.page()
+    },
+    // eslint-disable-next-line vue/no-dupe-keys
     handleDelete(index, row) {
       deleteUser(row.userId).then(res => {
         if (res.flag) {
@@ -217,9 +166,8 @@ export default {
     },
     handleEdit(index, row) {
       this.editUser = row
-      this.roleList()
-      this.roleIds = row.roleId.split(',').map(item => parseInt(item))
-      this.drawer = true
+      this.editUser.roleIds = row.roleId.split(',').map(item => parseInt(item))
+      this.editDrawer = true
     },
     roleList() {
       roleList().then(res => {
