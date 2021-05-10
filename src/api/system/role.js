@@ -1,4 +1,4 @@
-import request from '@/utils/request'
+import { request } from '@/utils/request'
 import server from './index'
 
 const module = `${server}/role`
@@ -8,7 +8,8 @@ const api = {
   add: `${module}`,
   delete: `${module}`,
   findRoleById: `${module}/findRoleById`,
-  update: `${module}`
+  update: `${module}`,
+  checkRoleNameIsExist: `${module}/checkRoleNameIsExist`
 }
 
 /**
@@ -65,3 +66,12 @@ export function updateRole(data) {
     data
   })
 }
+
+export function checkRoleNameIsExist(params) {
+  return request({
+    url: `${api.checkRoleNameIsExist}`,
+    method: 'get',
+    params
+  })
+}
+

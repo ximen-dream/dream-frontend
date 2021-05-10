@@ -75,20 +75,11 @@ const actions = {
         if (!response) {
           reject('Verification failed, please Login again.')
         }
-
-        const roles = ['admin', 'dada']
-        const { avatar, introduction } = response
-        response.roles = roles
-
-        // roles must be a non-empty array
-        if (!roles || roles.length <= 0) {
-          reject('getInfo: roles must be a non-null array!')
-        }
-
-        commit('SET_ROLES', roles)
-        commit('SET_NAME', 'damon')
-        commit('SET_AVATAR', avatar)
-        commit('SET_INTRODUCTION', introduction)
+        const principal = response.principal
+        commit('SET_ROLES', [])
+        commit('SET_NAME', principal.username)
+        commit('SET_AVATAR', principal.avatar)
+        commit('SET_INTRODUCTION', principal)
         resolve(response)
       }).catch(error => {
         reject(error)
@@ -104,7 +95,7 @@ const actions = {
         commit('SET_ROLES', [])
         // removeToken()
         resetRouter()
-
+        db.clear()
         // reset visited views and cached views
         // to fixed https://github.com/PanJiaChen/vue-element-admin/issues/2485
         dispatch('tagsView/delAllViews', null, { root: true })

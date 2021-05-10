@@ -1,6 +1,8 @@
 module.exports = {
   title: 'Vue Element Admin',
   authorizationValue: 'Basic Y2xvdWQ6MTIz',
+  socialLoginUrl: 'https://www.damoncai.top/api/auth/social/login',
+  // socialLoginUrl: 'http://apicloud.dream.cc:7301/auth/social/login',
 
   /**
    * @type {boolean} true | false

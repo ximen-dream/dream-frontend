@@ -1,4 +1,4 @@
-import request from '@/utils/request'
+import { request } from '@/utils/request'
 import server from './index'
 import qs from 'qs'
 
@@ -8,7 +8,8 @@ const api = {
   page: `${module}/page`,
   update: `${module}/update`,
   add: `${module}/add`,
-  delete: `${module}/delete`
+  delete: `${module}/delete`,
+  checkEmailIsExist: `${module}/checkEmailIsExist`
 }
 
 /**
@@ -58,6 +59,14 @@ export function deleteUser(data) {
   return request({
     url: `${api.delete}/${data}`,
     method: 'delete'
+  })
+}
+
+export function checkEmailIsExist(params) {
+  return request({
+    url: api.checkEmailIsExist,
+    method: 'get',
+    params
   })
 }
 

@@ -1,5 +1,5 @@
 <template>
-  <div class="login-container">
+  <div class="login-container" :style="'background-image:url('+ Background +')'">
     <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="login-form" autocomplete="on" label-position="left">
 
       <div class="title-container">
@@ -66,27 +66,40 @@
         <img :src="imageCode" alt="codeImage" class="code-image" @click="getCodeImage">
       </div>
       <el-button :loading="loading" type="primary" style="width:100%;margin-bottom:30px;" @click.native.prevent="handleLogin">Login</el-button>
+      <div>
+        <template v-for="(l, index) in logo">
+          <div :key="index" class="logo-wrapper">
+            <img :src="resolveLogo(l.img)" alt="" :class="{ 'radius': l.radius }" @click="socialLogin(l.name)">
+          </div>
+        </template>
+      </div>
     </el-form>
-
-    <el-dialog title="Or connect with" :visible.sync="showDialog">
-      Can not be simulated on local, so please combine you own business simulation! ! !
-      <br>
-      <br>
-      <br>
-      <social-sign />
+    <el-dialog :title="login.type == 'sign' ? '注册绑定' : '绑定' " :visible.sync="socialFormVisible" width="500px">
+      <el-form ref="ruleForm" :model="ruleForm" :rules="rules" label-width="100px">
+        <el-form-item style="background: white" label="用户名" prop="bindUsername">
+          <el-input v-model="ruleForm.bindUsername" style="border: 1px solid gainsboro; border-radius: 5px;-webkit-text-fill-color: black" />
+        </el-form-item>
+        <el-form-item style="background: white" label="密码" prop="bindPassword">
+          <el-input v-model="ruleForm.bindPassword" style="border: 1px solid gainsboro; border-radius: 5px;-webkit-text-fill-color: black" type="password" />
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="socialFormVisible = false">取 消</el-button>
+        <el-button type="primary" @click="doSocialHandle('ruleForm')">确 定</el-button>
+      </div>
     </el-dialog>
   </div>
 </template>
 
 <script>
 import db from '@/utils/localstorage'
-import SocialSign from './components/SocialSignin'
-import { mapMutations } from 'vuex'
-import { getUserInfo } from '../../api/auth'
+import { getUserInfo, bind, sign } from '../../api/auth'
+import Background from '@/assets/images/background.jpg'
 import axios from 'axios'
+import { socialLoginUrl } from '@/settings'
+import { mapMutations } from 'vuex'
 export default {
   name: 'Login',
-  components: { SocialSign },
   data() {
     const validateUsername = (rule, value, callback) => {
       if (!value) {
@@ -110,11 +123,43 @@ export default {
       }
     }
     return {
+      Background: Background,
+      ruleForm: {
+        bindUsername: '',
+        bindPassword: ''
+      },
+      rules: {
+        bindUsername: [
+          { required: true, message: '请输入用户名', trigger: 'blur' }
+        ],
+        bindPassword: [
+          { required: true, message: '请输入密码', trigger: 'blur' }
+        ]
+      },
+      socialFormVisible: false,
+      login: {
+        type: 'up'
+      },
+      socialLoginUrl: socialLoginUrl,
+      page: {
+        width: window.screen.width * 0.5,
+        height: window.screen.height * 0.5
+      },
+      logo: [
+        { img: 'gitee.png', name: 'gitee', radius: true },
+        { img: 'github.png', name: 'github', radius: true },
+        { img: 'tencent_cloud.png', name: 'tencent_cloud', radius: true },
+        { img: 'qq.png', name: 'qq', radius: false },
+        { img: 'dingtalk.png', name: 'dingtalk', radius: true },
+        { img: 'microsoft.png', name: 'microsoft', radius: false },
+        { img: 'weixin.png', name: 'wechat', radius: false }
+      ],
+      authUser: null,
       imageCode: undefined,
       codeUrl: `${process.env.VUE_APP_BASE_API}auth/captcha`,
       loginForm: {
-        username: 'ximen',
-        password: '123',
+        username: 'dream',
+        password: 'damoncai',
         code: '',
         key: '123'
       },
@@ -147,19 +192,57 @@ export default {
     // window.addEventListener('storage', this.afterQRScan)
   },
   mounted() {
+    db.clear()
     if (this.loginForm.username === '') {
       this.$refs.username.focus()
     } else if (this.loginForm.password === '') {
       this.$refs.password.focus()
     }
-    db.clear()
     this.getCodeImage()
   },
   destroyed() {
-    // window.removeEventListener('storage', this.afterQRScan)
+    window.removeEventListener('storage', this.afterQRScan)
   },
   methods: {
     ...mapMutations(['SET_ACCESSTOKEN', 'SET_REFRESHTOKEN', 'SET_EXPIRETIME', 'SET_USER']),
+    socialLogin(oauthType) {
+      const url = `${this.socialLoginUrl}/${oauthType}/login`
+      window.open(url, 'newWindow', `resizable=yes, height=${this.page.height}, width=${this.page.width}, top=10%, left=10%, toolbar=no, menubar=no, scrollbars=no, resizable=no,location=no, status=no`)
+      window.addEventListener('message', this.resolveSocialLogin, false)
+    },
+    resolveLogo(logo) {
+      return require(`@/assets/logo/${logo}`)
+    },
+    doSocialHandle(formName) {
+      this.$refs[formName].validate((valid) => {
+        if (valid) {
+          const params = {
+            bindUsername: this.ruleForm.bindUsername,
+            bindPassword: this.ruleForm.bindPassword,
+            ...this.authUser
+          }
+          params.token = null
+          if (this.login.type === 'sign') { // 登录绑定
+            sign(params).then(res => {
+              this.saveToken(res.data)
+              this.$router.push('/')
+            })
+          } else { // 绑定
+            bind(params).then(res => {
+              this.saveToken(res.data)
+              this.$router.push('/')
+            }).catch(err => console.log('bind err: ', err))
+          }
+        }
+      })
+    },
+    saveToken(data) {
+      this.$store.commit('user/SET_ACCESSTOKEN', data.access_token)
+      this.$store.commit('user/SET_REFRESHTOKEN', data.refresh_token)
+      const current = new Date()
+      const expireTime = current.setTime(current.getTime() + 1000 * data.expires_in)
+      this.$store.commit('user/SET_EXPIRETIME', expireTime)
+    },
     getCodeImage() {
       this.loginForm.code = ''
       axios({
@@ -186,6 +269,34 @@ export default {
           })
         }
       })
+    },
+    resolveSocialLogin(e) {
+      const data = e.data
+      if (data.message === 'not_bind') {
+        console.log('not_bind', e)
+        this.login.type = 'bind'
+        const authUser = data.data
+        this.authUser = authUser
+        console.log('authuser', this.authUser)
+        this.$confirm(`该${authUser.source},未绑定账户`, '提示', {
+          confirmButtonText: '注册用户',
+          cancelButtonText: '绑定用户',
+          type: 'warning'
+        }).then(() => {
+          this.login.type = 'sign'
+          this.socialFormVisible = true
+        }).catch(() => {
+          this.login.type = 'bind'
+          this.socialFormVisible = true
+        })
+      } else if (data.message === 'social_login_success') {
+        this.saveToken(data.data)
+        this.$router.push('/')
+        // _this.getUserDetailInfo()
+        // _this.loginSuccessCallback()
+      } else {
+        // do nothing
+      }
     },
     checkCapslock(e) {
       const { key } = e
@@ -288,7 +399,7 @@ $cursor: #fff;
 .login-container {
   .el-input {
     display: inline-block;
-    height: 47px;
+    height: 40px;
     width: 85%;
 
     input {
@@ -332,9 +443,16 @@ $dark_gray:#889aa4;
 $light_gray:#eee;
 
 .login-container {
-  min-height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  background-size: cover;
+}
+
+.login-container {
+  height: 100%;
   width: 100%;
-  background: url("images/background.jpg") fixed no-repeat left top;
   overflow: hidden;
 
   .login-form {
@@ -399,6 +517,20 @@ $light_gray:#eee;
   @media only screen and (max-width: 470px) {
     .thirdparty-button {
       display: none;
+    }
+  }
+}
+
+.logo-wrapper {
+  display: inline-block;
+  margin: 10px 0;
+  img {
+    width: 1.9rem;
+    display: inline-block;
+    margin: .8rem .8rem -.8rem .8rem;
+    cursor: pointer;
+    &.radius {
+      border-radius: 50%;
     }
   }
 }

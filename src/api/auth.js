@@ -1,4 +1,4 @@
-import request from '@/utils/request'
+import { request, refresh_service } from '@/utils/request'
 import qs from 'qs'
 
 const server = 'auth'
@@ -38,9 +38,10 @@ export function login(data) {
  * @returns {AxiosPromise}
  */
 export function refresh(data) {
-  return request({
+  return refresh_service({
     url: `${server}/oauth/token`,
     method: 'post',
+    async: true,
     data: qs.stringify(data),
     headers: {
       'Authorization': 'Basic Y2xvdWQ6MTIz'
@@ -56,6 +57,31 @@ export function getUserInfo() {
   return request({
     url: `${server}/user`,
     method: 'get'
+  })
+}
+
+export function logout() {
+  return request({
+    url: `${server}/signout`,
+    method: 'delete'
+  })
+}
+
+// bind
+export function bind(params) {
+  return request({
+    url: `${server}/social/bind/login`,
+    method: 'post',
+    params
+  })
+}
+
+// sign and bind
+export function sign(params) {
+  return request({
+    url: `${server}/social/sign/login`,
+    method: 'post',
+    params
   })
 }
 

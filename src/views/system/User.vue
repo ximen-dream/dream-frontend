@@ -76,8 +76,8 @@
         />
       </template>
     </div>
-    <user-add :drawer="addDrawer" @close="addDrawerClose" @submitSuccess="addSuccess"/>
-    <user-edit :drawer="editDrawer" @close="editDrawerClose" :user="editUser" @submitSuccess="editSuccess"/>
+    <user-add v-if="addDrawer" :drawer="addDrawer" @close="addDrawerClose" @submitSuccess="addSuccess" />
+    <user-edit v-if="editDrawer" :drawer="editDrawer" :user="editUser" @close="editDrawerClose" @submitSuccess="editSuccess" />
   </div>
 </template>
 
@@ -116,11 +116,14 @@ export default {
     }
   },
   mounted() {
-    this.page()
-    this.roleList()
+    this.init()
   },
   methods: {
     moment,
+    init() {
+      this.page()
+      this.roleList()
+    },
     addDrawerClose() {
       this.addDrawer = false
     },
@@ -130,6 +133,10 @@ export default {
     // 添加成功
     addSuccess() {
       this.addDrawer = false
+      this.page()
+    },
+    editSuccess() {
+      this.editDrawer = false
       this.page()
     },
     // eslint-disable-next-line vue/no-dupe-keys

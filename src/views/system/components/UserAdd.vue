@@ -1,41 +1,50 @@
 <template>
-    <div>
-      <el-drawer
-        title="添加用户"
-        :visible.sync="drawer"
-        :with-header="false"
-        @close="close"
-      >
-        <div class="drawer">
-          <div class="addTitle"><h3>添加用户</h3></div>
-          <el-form :model="ruleForm" :rules="rules" ref="ruleForm" label-width="100px" class="addUserForm" >
-            <el-form-item label="用户名" prop="username" class="username">
-              <el-input v-model="ruleForm.username"></el-input>
-            </el-form-item>
-            <el-form-item  label="邮箱" prop="email" class="email">
-              <el-input v-model="ruleForm.email"></el-input>
-            </el-form-item>
-            <el-form-item label="角色" prop="role" class="role">
-              <el-select multiple v-model="ruleForm.role" placeholder="请选择角色">
-                <el-option v-for="item in roleOptions" :key="item.id" :label="item.label" :value="item.value"/>
-              </el-select>
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" @click="submitForm('ruleForm')">提交</el-button>
-              <el-button @click="resetForm('ruleForm')">重置</el-button>
-            </el-form-item>
-          </el-form>
-        </div>
-      </el-drawer>
-    </div>
+  <div>
+    <el-drawer
+      title="添加用户"
+      :visible.sync="drawer"
+      :with-header="false"
+      @close="close"
+    >
+      <div class="drawer">
+        <div class="addTitle"><h3>添加用户</h3></div>
+        <el-form ref="ruleForm" :model="ruleForm" :rules="rules" label-width="100px" class="addUserForm">
+          <el-form-item label="用户名" prop="username" class="username">
+            <el-input v-model="ruleForm.username" />
+          </el-form-item>
+          <el-form-item label="邮箱" prop="email" class="email">
+            <el-input v-model="ruleForm.email" />
+          </el-form-item>
+          <el-form-item label="角色" prop="role" class="role">
+            <el-select v-model="ruleForm.role" multiple placeholder="请选择角色">
+              <el-option v-for="item in roleOptions" :key="item.id" :label="item.label" :value="item.value" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="submitForm('ruleForm')">提交</el-button>
+            <el-button @click="resetForm('ruleForm')">重置</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+    </el-drawer>
+  </div>
 </template>
 
 <script>
 import { page as roleList } from '@/api/system/role'
-import { add } from '@/api/system/user'
+import { add, checkEmailIsExist } from '@/api/system/user'
 export default {
   name: 'UserEdit',
+  props: {
+    drawer: {
+      type: Boolean,
+      default: false
+    }
+  },
   data() {
+    const validEmail = (rule, value, callback) => {
+      checkEmailIsExist({ email: value }).then(() => callback()).catch(() => callback('邮箱已存在'))
+    }
     return {
       roleOptions: [],
       ruleForm: {
@@ -45,12 +54,12 @@ export default {
       },
       rules: {
         username: [
-          { required: true, message: '请输入用户名', trigger: 'blur' },
-          { min: 3, max: 5, message: '长度在 3 到 6 个字符', trigger: 'blur' }
+          { required: true, message: '请输入用户名', trigger: 'blur' }
         ],
         email: [
           { required: true, message: '请输入邮箱', trigger: 'blur' },
-          { type: 'email', message: '请输入正确的邮箱地址', trigger: ['blur', 'change'] }
+          { type: 'email', message: '请输入正确的邮箱地址', trigger: ['blur', 'change'] },
+          { validator: validEmail, trigger: 'blur' }
         ],
         role: [
           { type: 'array', required: true, message: '请至少选择一个角色', trigger: 'change' }
@@ -60,12 +69,6 @@ export default {
   },
   mounted() {
     this.roleList()
-  },
-  props: {
-    drawer: {
-      type: Boolean,
-      default: false
-    }
   },
   methods: {
     roleList() {

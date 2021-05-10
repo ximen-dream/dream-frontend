@@ -62,17 +62,29 @@
         </div>
       </div>
     </div>
+    <role-edit
+      v-if="editDrawer"
+      :drawer="editDrawer"
+      :role="selectedRole"
+      @close="editDrawerClose"
+      @submitSuccess="editRoleSuccess"
+    />
   </div>
 </template>
 
 <script>
-import { page, add, deleteRole, findRoleById } from '../../api/system/role'
+import { page, add, deleteRole, findRoleById, checkRoleNameIsExist } from '../../api/system/role'
 import { list } from '../../api/system/menu'
+import RoleEdit from '@/views/system/components/RoleEdit'
 
 export default {
   name: 'Role',
+  components: {
+    RoleEdit
+  },
   data() {
     return {
+      selectedRole: {},
       editRoleId: undefined,
       checkedKeys: [],
       defaultProps: {
@@ -80,7 +92,7 @@ export default {
         label: 'label'
       },
       menus: [],
-      addDrawer: false,
+      editDrawer: false,
       tableData: [],
       addRole: {}
     }
@@ -90,13 +102,21 @@ export default {
     this.menuList()
   },
   methods: {
+    editRoleSuccess() {
+      this.page()
+      this.editDrawer = false
+    },
     page() {
       page().then(res => {
         this.tableData = res.data
       })
     },
     handleEdit(index, row) {
-      this.findRoleById(row.roleId)
+      this.editDrawer = true
+      this.selectedRole = row
+    },
+    editDrawerClose() {
+      this.editDrawer = false
     },
     findRoleById(roleId) {
       this.editRoleId = roleId
@@ -105,6 +125,15 @@ export default {
       })
     },
     doAdd() {
+      if (!this.addRole.roleName) {
+        this.$message.error('角色名称不可为空')
+        return
+      }
+      // 校验角色名称是否存在
+      checkRoleNameIsExist({ roleName: this.addRole.roleName }).then().catch(() => {
+        this.$message.error('角色名称已存在')
+        return
+      })
       const checkedKeys = this.$refs.addtree.getCheckedKeys().concat(this.$refs.addtree.getHalfCheckedKeys())
       const params = {
         menuIds: checkedKeys,
